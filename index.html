@@ -1,0 +1,135 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Журнал посещаемости</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; background: #f0f0f0; }
+    .container { max-width: 900px; margin: auto; background: #fff; padding: 20px; border-radius: 10px; }
+    input, select, button { margin: 5px; padding: 8px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 5px; text-align: center; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Вход</h2>
+    <input type="password" id="password" placeholder="Введите пароль" />
+    <button onclick="checkPassword()">Войти</button>
+
+    <div id="main" class="hidden">
+      <h2>Журнал посещаемости</h2>
+
+      <select id="group">
+        <option value="morning">До обеда</option>
+        <option value="evening">До вечера</option>
+      </select>
+      <input type="text" id="name" placeholder="Имя" />
+      <input type="text" id="surname" placeholder="Фамилия" />
+      <input type="number" id="price" placeholder="Сумма (UZS в день)" />
+      <button onclick="addChild()">Добавить</button>
+      <button onclick="calculateAll()">Расчёт за месяц</button>
+
+      <div id="tables"></div>
+    </div>
+  </div>
+
+  <script>
+    const PASSWORD = "Ermanova1984";
+
+    function checkPassword() {
+      const pass = document.getElementById("password").value;
+      if (pass === PASSWORD) {
+        document.getElementById("main").classList.remove("hidden");
+        document.getElementById("password").parentElement.classList.add("hidden");
+        loadData();
+      } else {
+        alert("Неверный пароль");
+      }
+    }
+
+    function loadData() {
+      ["morning", "evening"].forEach(group => {
+        if (!localStorage.getItem(group)) {
+          localStorage.setItem(group, JSON.stringify([]));
+        }
+      });
+      renderTables();
+    }
+
+    function addChild() {
+      const group = document.getElementById("group").value;
+      const name = document.getElementById("name").value.trim();
+      const surname = document.getElementById("surname").value.trim();
+      const price = parseInt(document.getElementById("price").value);
+
+      if (!name || !surname || isNaN(price)) return alert("Заполните все поля");
+
+      const child = { name, surname, days: [], price };
+      const data = JSON.parse(localStorage.getItem(group));
+      data.push(child);
+      localStorage.setItem(group, JSON.stringify(data));
+      renderTables();
+    }
+
+    function toggleDay(group, index, date) {
+      const data = JSON.parse(localStorage.getItem(group));
+      const child = data[index];
+      const i = child.days.indexOf(date);
+      if (i >= 0) child.days.splice(i, 1);
+      else child.days.push(date);
+      localStorage.setItem(group, JSON.stringify(data));
+      renderTables();
+    }
+
+    function removeChild(group, index) {
+      const data = JSON.parse(localStorage.getItem(group));
+      data.splice(index, 1);
+      localStorage.setItem(group, JSON.stringify(data));
+      renderTables();
+    }
+
+    function calculateAll() {
+      renderTables(true);
+    }
+
+    function renderTables(showTotal = false) {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      let html = "";
+
+      ["morning", "evening"].forEach(group => {
+        const title = group === "morning" ? "До обеда" : "До вечера";
+        const data = JSON.parse(localStorage.getItem(group));
+
+        html += `<h3>${title}</h3><table><thead><tr><th>Имя</th><th>Фамилия</th>`;
+        for (let d = 1; d <= daysInMonth; d++) {
+          html += `<th>${d}</th>`;
+        }
+        html += `<th>Итого дней</th><th>Сумма (UZS)</th><th>Удалить</th></tr></thead><tbody>`;
+
+        data.forEach((child, index) => {
+          html += `<tr><td>${child.name}</td><td>${child.surname}</td>`;
+          for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${year}-${month + 1}-${d}`;
+            const marked = child.days.includes(dateStr);
+            html += `<td><input type="checkbox" ${marked ? "checked" : ""} onclick="toggleDay('${group}', ${index}, '${dateStr}')" /></td>`;
+          }
+          const totalDays = child.days.length;
+          const totalSum = totalDays * child.price;
+          html += `<td>${totalDays}</td><td>${totalSum}</td><td><button onclick="removeChild('${group}', ${index})">❌</button></td></tr>`;
+        });
+
+        html += "</tbody></table>";
+      });
+
+      document.getElementById("tables").innerHTML = html;
+    }
+  </script>
+</body>
+</html>
